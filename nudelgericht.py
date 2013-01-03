@@ -91,30 +91,34 @@ def get_voting_threshold():
         return 3
     return threshold
 
+nicks = {}
 votes = {}
 
 def remember_vote(target, votetype, origin):
     global votes
+    ltarget = target.lower()
     votetime = time()
     message = ''
     try:
-        votes[target][votetype][origin] = votetime
+        votes[ltarget][votetype][origin] = votetime
         message += "Stimme gezählt von %s %s %s." % (get_nickname(origin), votetype, target)
     except KeyError:
         try:
-            votes[target][votetype] = { origin: votetime }
+            votes[ltarget][votetype] = { origin: votetime }
+            nicks[ltarget] = target
             emit('')
         except KeyError:
-            votes[target] = { votetype: { origin: votetime } }
+            votes[ltarget] = { votetype: { origin: votetime } }
+            nicks[ltarget] = target
         message += "Abstimmung gestartet von %s %s %s." % (get_nickname(origin), votetype, target)
     emit('%s Weitere Stimmen notwendig: %d.' % \
         (message, get_voting_threshold() - count_votes(target, votetype)))
 
 def count_votes(target, votetype):
-    return len(votes[target][votetype])
+    return len(votes[target.lower()][votetype])
 
 def forget_votes(target, votetype):
-    del votes[target][votetype]
+    del votes[target.lower()][votetype]
 
 def forget_old_votes():
     global votes
@@ -122,10 +126,11 @@ def forget_old_votes():
         for votetype in votes[target]:
             for origin in votes[target][votetype]:
                 votetime = votes[target][votetype][origin]
+                nick = nicks[target]
                 if votetime + VOTING_TIMEOUT < time():
                     del votes[target][votetype][origin]
                     emit('Stimme abgelaufen von %s %s %s.' % \
-                        (get_nickname(origin), votetype, target))
+                        (get_nickname(origin), votetype, nick))
                     break
 
 def execute_the_will_of_the_people():
@@ -133,7 +138,8 @@ def execute_the_will_of_the_people():
     for target in votes:
         for votetype in votes[target]:
             if count_votes(target, votetype) >= get_voting_threshold():
-                emit('Abstimmung %s %s erfolgreich.' % (votetype, target))
+                nick = nicks[target]
+                emit('Abstimmung %s %s erfolgreich.' % (votetype, nick))
                 if votetype == 'für':
                     unban(target)
                     op(target)
@@ -216,7 +222,7 @@ while True:
                 if argument == NICK:
                     emit('An dieser Stelle habe ich einen überflüssigen Smiley hingemacht, wofür ich mich dereinst schämen werde.')
                     kick(nickname)
-                elif argument not in users:
+                elif argument.lower() not in [x.lower() for x in users]:
                     emit("%s ist nicht in %s." % (argument, CHANNEL))
                 elif old_enough_to_vote(hostmask):
                     remember_vote(argument, command[1:], hostmask)
