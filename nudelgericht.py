@@ -107,8 +107,11 @@ def remember_vote(target, votetype, origin):
         except KeyError:
             votes[target] = { votetype: { origin: votetime } }
         message += "Abstimmung gestartet von %s %s %s." % (get_nickname(origin), votetype, target)
-    emit('%s Weitere Stimmen notwendig: %d.' % \
-        (message, get_voting_threshold() - count_votes(target, votetype)))
+    missing_votes = get_voting_threshold() - count_votes(target, votetype)
+    if missing_votes == 0:
+        execute_the_will_of_the_people()
+    else:
+        emit('%s Weitere Stimmen notwendig: %d.' % (message, missing_votes))
 
 def count_votes(target, votetype):
     return len(votes[target][votetype])
